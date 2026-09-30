@@ -1,19 +1,19 @@
-const User =require("../models/User");
+const User = require("../models/User");
 const bcrypt = require("bcrypt")
 const generateToken = require("../lib/utils");
 
 const signup = async (req, res) => {
     try{
-        const {fullname, email, password} = req.body;
+        const {fullName, email, password} = req.body;
 
-        if (!fullname || !email || !password) {
+        if (!fullName || !email || !password) {
             return res.status(400).json({
                 message: "All fields are required"
             });
         }
 
-        if (password.lenght < 6){
-            res.status(400).json({
+        if (password.length < 6){
+            return res.status(400).json({
                 message: "Password must be atleast 6 characters"
             });
         }
@@ -21,24 +21,24 @@ const signup = async (req, res) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailRegex.test(email)){
-            res.status(400).json({
+            return res.status(400).json({
                 message: "Send a valid email"
             });
         }
 
-        const exsistingUser = await User.findOne({email});
+        const existingUser = await User.findOne({email});
 
-        if(exsistingUser){
+        if(existingUser){
             return res.status(400).json({
                 message: "User already exists"
             });
         }
 
-        const salt = bcrypt.genSalt(10);
-        const hashedPassword = bcrypt.hash(password, salt);
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
         const newUser = await User.create({
-            fullname,
+            fullName,
             email,
             password: hashedPassword
         });
@@ -49,7 +49,7 @@ const signup = async (req, res) => {
             message: "User created successfully",
             user: {
                 id: newUser._id,
-                fullname: newUser.fullName,
+                fullName: newUser.fullName,
                 email: newUser.email
             }
         });
@@ -75,7 +75,7 @@ const login = async (req, res) => {
             });
         }
 
-        const isPasswordCorrect = bcrypt.compare(password, user.password);
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
         if(!isPasswordCorrect){
             return res.status(401).json({
@@ -89,7 +89,7 @@ const login = async (req, res) => {
             message: "Login successful",
             user: {
                 id: user._id,
-                name: user.fullName,
+                fullName: user.fullName,
                 email: user.email
             }
         });
@@ -112,4 +112,36 @@ const logout = (req, res) => {
     });
 };
 
-module.exports= {signup, login, logout};
+const updateProfile = async (req, res) => {
+    try{
+        const {fullName, profilePic} = req.body;
+
+        const updateData = {};
+
+        if(fullName){
+            updateData.fullName = fullName;
+        }
+
+        if(profilePic){
+            updateData.profilePic = profilePic;
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.userId, 
+            updateData, 
+            {
+                new: true
+            }
+        );
+
+        res.status(200).json(updatedUser);
+
+    }catch(error){
+        console.error("Error in updateProfile: ", error);
+        res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+}
+
+module.exports = {signup, login, logout, updateProfile};
